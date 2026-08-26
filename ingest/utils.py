@@ -26,7 +26,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD"),
 }
 
-INGEST_DELAY = float(os.getenv("INGEST_DELAY", "0.25"))
+INGEST_DELAY = float(os.getenv("INGEST_DELAY", "0.1"))
 
 
 # =============================================
@@ -84,5 +84,4 @@ def tmdb_request(endpoint, params=None):
 
 
 def rate_limit():
-    """Sleep to respect TMDB API rate limits."""
     time.sleep(INGEST_DELAY)

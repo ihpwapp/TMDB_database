@@ -19,12 +19,25 @@ Tables populated:
 - release_dates
 
 Usage:
-    python ingest/ingest.py
+    python -m ingest.ingest
 """
 
+import os
 import sys
 from datetime import datetime
-from utils import tmdb_request, rate_limit, execute_query, execute_batch
+from dotenv import load_dotenv
+
+from ingest.utils import tmdb_request, rate_limit, execute_query, execute_batch
+
+# Load environment variables from .env
+load_dotenv()
+
+# =============================================
+# CONFIGURATION (from .env)
+# =============================================
+
+INGEST_PAGES = int(os.getenv("INGEST_PAGES", "500"))
+INGEST_DELAY = float(os.getenv("INGEST_DELAY", "0.1"))
 
 
 # =============================================
@@ -65,25 +78,62 @@ def ingest_genres():
 # INGEST: Movies (main loop)
 # =============================================
 
-def ingest_movies(max_pages=500):
+def ingest_movies(max_pages=INGEST_PAGES):
     """
-    Fetch popular movies across multiple pages,
-    then fetch full details for each movie.
+    Fetch movies from BOTH /movie/popular AND /discover/movie (by revenue).
+    Combine and deduplicate automatically.
     """
-    log(f"Fetching movie list (up to {max_pages} pages)...")
-    movie_ids = []
-
+    log(f"Fetching movies from multiple sources (up to {max_pages} pages each)...")
+    
+    all_movie_ids = set()  # Set automatically deduplicates
+    
+    # ==========================================
+    # SOURCE 1: Popular movies
+    # ==========================================
+    log("  📊 Source 1: /movie/popular")
     for page in range(1, max_pages + 1):
         data = tmdb_request("/movie/popular", {"page": page, "language": "en-US"})
         results = data.get("results", [])
         if not results:
             break
-        movie_ids.extend([m["id"] for m in results])
-        if page % 10 == 0:
-            log(f"  Page {page}: collected {len(movie_ids)} movie IDs")
+        all_movie_ids.update([m["id"] for m in results])
+        if page % 50 == 0:
+            log(f"    Page {page}: collected {len(all_movie_ids)} unique IDs so far")
         rate_limit()
-
-    log(f"  ✓ Found {len(movie_ids)} movies. Now fetching details...")
+    
+    log(f"  ✓ From popular: {len(all_movie_ids)} unique movies")
+    
+    # ==========================================
+    # SOURCE 2: Top revenue movies
+    # ==========================================
+    log("  💰 Source 2: /discover/movie (sorted by revenue)")
+    revenue_count = len(all_movie_ids)
+    
+    for page in range(1, max_pages + 1):
+        data = tmdb_request("/discover/movie", {
+            "page": page,
+            "language": "en-US",
+            "sort_by": "revenue.desc",
+            "include_adult": "false",
+            "include_video": "false",
+            "primary_release_date.gte": "1980-01-01",
+        })
+        results = data.get("results", [])
+        if not results:
+            break
+        all_movie_ids.update([m["id"] for m in results])
+        if page % 50 == 0:
+            log(f"    Page {page}: collected {len(all_movie_ids)} unique IDs so far")
+        rate_limit()
+    
+    new_from_revenue = len(all_movie_ids) - revenue_count
+    log(f"  ✓ From revenue: +{new_from_revenue} new movies ({len(all_movie_ids)} total unique)")
+    
+    # ==========================================
+    # PROCESS ALL UNIQUE MOVIES
+    # ==========================================
+    movie_ids = list(all_movie_ids)
+    log(f"  ✓ Total unique movies: {len(movie_ids)}. Now fetching details...")
 
     # Fetch full details for each movie
     for i, movie_id in enumerate(movie_ids, 1):
@@ -98,12 +148,77 @@ def ingest_movies(max_pages=500):
     log(f"  ✓ Completed movie ingestion")
 
 
+
 def ingest_movie_details(movie_id):
+    """Fetch and insert movie data with graceful error handling."""
+    
+    # Fetch from API
+    try:
+        data = tmdb_request(
+            f"/movie/{movie_id}",
+            {"append_to_response": "credits,keywords,release_dates", "language": "en-US"}
+        )
+    except Exception as e:
+        log(f"  ✗ Failed to fetch movie {movie_id}: {e}")
+        return
+    
+    # Insert each part separately (continue if one fails)
+    
+    # 1. Collection
+    collection = data.get("belongs_to_collection")
+    if collection:
+        try:
+            insert_collection(collection)
+        except Exception as e:
+            log(f"    ⚠️ Collection failed for {movie_id}: {e}")
+    
+    # 2. Movie (MAIN ONE - critical)
+    try:
+        insert_movie(data)
+    except Exception as e:
+        log(f"  ✗ Movie insert failed for {movie_id}: {e}")
+        return  # Skip the rest if main movie failed
+    
+    # 3. People
+    credits = data.get("credits", {})
+    for person in credits.get("cast", []):
+        try:
+            insert_person(person)
+        except: pass
+    for person in credits.get("crew", []):
+        try:
+            insert_person(person)
+        except: pass
+    
+    # 4. Junctions (all with error handling)
+    try: insert_movie_genres(movie_id, data.get("genres", []))
+    except: pass
+    
+    try: insert_movie_keywords(movie_id, data.get("keywords", {}).get("keywords", []))
+    except: pass
+    
+    try: insert_movie_companies(movie_id, data.get("production_companies", []))
+    except: pass
+    
+    try: insert_movie_cast(movie_id, credits.get("cast", []))
+    except: pass
+    
+    try: insert_movie_crew(movie_id, credits.get("crew", []))
+    except: pass
+    
+    try: insert_production_countries(movie_id, data.get("production_countries", []))
+    except: pass
+    
+    try: insert_spoken_languages(movie_id, data.get("spoken_languages", []))
+    except: pass
+    
+    try: insert_release_dates(movie_id, data.get("release_dates", {}).get("results", []))
+    except: pass
     """
     Fetch full details for a single movie and insert into all related tables.
     Uses append_to_response to minimize API calls.
     """
-    # Fetch movie + credits + keywords + release_dates + videos + images
+    # Fetch movie + credits + keywords + release_dates
     data = tmdb_request(
         f"/movie/{movie_id}",
         {
@@ -112,31 +227,7 @@ def ingest_movie_details(movie_id):
         }
     )
 
-    # ----- 1. Insert movie -----
-    insert_movie(data)
-
-    # ----- 2. Insert collection (if any) -----
-    collection = data.get("belongs_to_collection")
-    if collection:
-        insert_collection(collection)
-
-    # ----- 3. Insert people (cast + crew) -----
-    credits = data.get("credits", {})
-    for person in credits.get("cast", []):
-        insert_person(person)
-    for person in credits.get("crew", []):
-        insert_person(person)
-
-    # ----- 4. Insert junction tables -----
-    insert_movie_genres(movie_id, data.get("genres", []))
-    insert_movie_keywords(movie_id, data.get("keywords", {}).get("keywords", []))
-    insert_movie_companies(movie_id, data.get("production_companies", []))
-    insert_movie_cast(movie_id, credits.get("cast", []))
-    insert_movie_crew(movie_id, credits.get("crew", []))
-    insert_production_countries(movie_id, data.get("production_countries", []))
-    insert_spoken_languages(movie_id, data.get("spoken_languages", []))
-    insert_release_dates(movie_id, data.get("release_dates", {}).get("results", []))
-
+   
 
 # =============================================
 # INSERT HELPERS
@@ -423,13 +514,15 @@ def main():
     log("=" * 50)
     log("🎬 TMDB Ingestion Starting")
     log("=" * 50)
+    log(f"   Config: {INGEST_PAGES} pages (~{INGEST_PAGES * 20} movies)")
+    log(f"   Rate limit: {INGEST_DELAY}s between calls")
 
     try:
         # Step 1: Genres (required before movies)
         ingest_genres()
 
         # Step 2: Movies (fetches everything else)
-        ingest_movies(max_pages=500)
+        ingest_movies(max_pages=INGEST_PAGES)
 
         log("=" * 50)
         log("✅ Ingestion completed successfully!")

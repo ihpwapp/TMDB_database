@@ -10,7 +10,7 @@ A PostgreSQL schema and Python ingestion script for **The Movie Database (TMDB)*
 
 - **16 tables** for Movies + People + Dimensions
 - **SQL DDL** for PostgreSQL
-- **Python ingestion** to populate from TMDB API
+- **Python ingestion** to populate from TMDB API (Takes ~7 hours)
 
 ## 🚀 Quick Start
 

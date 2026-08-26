@@ -1,21 +1,21 @@
 # Core
-requests==2.31.0
-python-dotenv==1.0.0
-tqdm==4.66.1
+requests
+python-dotenv
+tqdm
 
 # Database
-psycopg2-binary==2.9.9
-sqlalchemy==2.0.25
+psycopg2-binary
+sqlalchemy
 
 # Data processing
-pandas==2.1.4
-numpy==1.26.2
+pandas
+numpy
 
 # Logging
-loguru==0.7.2
+loguru
 
 # Development
-jupyter==1.0.0
-ipython==8.17.2
-black==23.11.0
-flake8==6.1.0
+jupyter
+ipython
+black
+flake8
