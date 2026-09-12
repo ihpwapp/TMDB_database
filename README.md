@@ -1,5 +1,8 @@
 ## 🎬 TMDB Database Schema + Ingestion
 
+🔗 **[Data Dictionary (Google Docs)]([YOUR_URL_HERE](https://docs.google.com/document/d/1CV-DElvKOjLBfyKnuJ3P1iOLmUA4N8z4Qms3wYUiUXs/edit?usp=sharing))** — Contains definitions, data types, and core schemas for this project.
+
+
 A PostgreSQL schema and Python ingestion script for **The Movie Database (TMDB)** API.
 
 ## 📊 Schema Diagram
