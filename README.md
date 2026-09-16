@@ -121,7 +121,7 @@ If you need to inspect or edit the schema, see the files in the `schema/` direct
 - If TMDB requests fail, confirm `TMDB_API_KEY` is set and valid, and consider increasing `INGEST_DELAY`.
 - For performance, reduce `INGEST_PAGES` during development.
 
-\
+
 ## **Detailed Script Descriptions**
 
 **ingest/ingest.py** (primary)
