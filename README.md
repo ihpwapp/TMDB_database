@@ -1,22 +1,23 @@
 # 🎬 TMDB Ingestion Pipeline
 
-<<<<<<< HEAD
+
 **[Data Dictionary (Google Docs)](https://docs.google.com/document/d/1CV-DElvKOjLBfyKnuJ3P1iOLmUA4N8z4Qms3wYUiUXs/edit?usp=sharing)** — Contains definitions, data types, and core schemas for this project.
 
 
 A PostgreSQL schema and Python ingestion script for **The Movie Database (TMDB)** API.
 =======
 This repository provides a PostgreSQL schema and Python-based ingestion pipeline to populate a local PostgreSQL database with metadata from The Movie Database (TMDB) API.
->>>>>>> 85af141 (Update read me)
 
-**Notes:**
-- The ERD folder is intentionally ignored in this README. See the code and schema files for implementation details.
 
 **Contents (high level)**
 - Database schema and seed: [schema/01_create_tables.sql](schema/01_create_tables.sql) and [schema/02_schema_seed_reference_data.sql](schema/02_schema_seed_reference_data.sql)
 - Ingestion scripts: [ingest/ingest.py](ingest/ingest.py) and [ingest/enrich_people.py](ingest/enrich_people.py)
 - Utilities: [ingest/utils.py](ingest/utils.py)
 - Python dependencies: [requirements.txt](requirements.txt)
+
+## **Schema Diagram**
+
+![TMDB Schema](schema/tmdb_schema.png)
 
 ## **Quick Start**
 
