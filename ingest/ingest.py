@@ -17,9 +17,6 @@ Tables populated:
 - production_countries
 - spoken_languages
 - release_dates
-
-Usage:
-    python -m ingest.ingest
 """
 
 import os
@@ -229,9 +226,7 @@ def ingest_movie_details(movie_id):
 
    
 
-# =============================================
 # INSERT HELPERS
-# =============================================
 
 def insert_movie(data):
     """Insert or update a single movie."""
@@ -505,9 +500,7 @@ def insert_release_dates(movie_id, releases):
     )
 
 
-# =============================================
 # MAIN
-# =============================================
 
 def main():
     """Run the full ingestion pipeline."""

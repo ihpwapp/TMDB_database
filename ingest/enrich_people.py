@@ -1,13 +1,3 @@
-"""
-Enrich People Data
-==================
-Fetches full person details for people already in the database.
-Fills in: biography, birthday, deathday, place_of_birth, imdb_id, homepage
-
-Usage:
-    python -m ingest.enrich_people
-"""
-
 import os
 import sys
 from datetime import datetime
