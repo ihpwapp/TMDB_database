@@ -26,3 +26,7 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+
+#Future implementation ERD
+ERD/
